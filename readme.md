@@ -26,7 +26,7 @@ http-server -p 8000
 
 Navigate to `localhost:8000` in your web browser.
 
-## LIVE RELOAD
+### LIVE RELOAD
 
 There are other ways to set this up ([this](https://github.com/guard/guard-livereload) might be a good, free choice), but I used [LiveReload2](http://livereload.com/) with the [browser extension](http://feedback.livereload.com/knowledgebase/articles/86242-how-do-i-install-and-use-the-browser-extensions-). Unfortunately, I couldn't get LiveReload's compiler to generate SourceMaps that Chrome could understand. If you can, you don't even need to run `iced`.
 
