@@ -1,0 +1,19 @@
+html, body, .game-container {
+	height: 100%;
+}
+
+body {
+	background-color: black;
+}
+
+#game {
+    padding-left: 0;
+    padding-right: 0;
+    margin: auto;
+    /*margin-right: auto;*/
+    display: block;
+}
+
+.game-container {
+	display: flex;
+}

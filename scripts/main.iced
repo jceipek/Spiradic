@@ -70,6 +70,7 @@ require ['./state', 'jquery'], (STATE, $) ->
 
   initGameData = () ->
     gs = {
+      levelIndex: 1
       isPaused: true
       invincibilityTimer: 0
       didGetHitTimer: 0
@@ -246,13 +247,13 @@ require ['./state', 'jquery'], (STATE, $) ->
       clearScreen(ctx, G.screenDims,0)
       ctx.textAlign="left";
       ctx.fillStyle = '#000'
-      ctx.font="20px Georgia";
+      ctx.font="20px Open Sans";
       ctx.fillText("Loading...",10,30);
 
     # ms Counter
     ctx.textAlign="right";
     ctx.fillStyle = '#000'
-    ctx.font="20px Georgia";
+    ctx.font="20px Open Sans";
     ctx.fillText(parseInt(dt*10)/10,pixelsPerUnit * (G.worldDims.width-0.01),30);
     P.swapBuffers()
 
@@ -285,9 +286,16 @@ require ['./state', 'jquery'], (STATE, $) ->
     if G.input.change
       if G.isPaused
         G.isPaused = false
+        audioPlayer.currentTime = G.elapsedTime
+        audioPlayer.play()
       else
         G.player.type += 1
         G.player.type = G.player.type % G.player.totalTypes
+
+        if G.elapsedTime > G.levelTime * G.levelIndex
+          G.levelIndex += 1
+          G.isPaused = true
+          audioPlayer.pause()
     # Clear the bg
     clearScreen(ctx, G.screenDims, G.player.type)
 
@@ -307,20 +315,42 @@ require ['./state', 'jquery'], (STATE, $) ->
     scaler = 0.02 * Math.sin(G.audio.beats[G.audio.beatIndex].duration - (G.elapsedTime - G.audio.beats[G.audio.beatIndex].start))
     radius = 0.30 + scaler
     ctx.arc(center.x * pixelsPerUnit, center.y * pixelsPerUnit, radius * pixelsPerUnit, 0, 2 * Math.PI)
-    x = Math.cos(Math.PI * 2 - Math.PI/2 - G.worldRot)*radius + center.x
-    y = Math.sin(Math.PI * 2 - Math.PI/2 - G.worldRot)*radius + center.y
-    ctx.moveTo(x * pixelsPerUnit, y * pixelsPerUnit)
-    x = Math.cos(Math.PI * 2 - Math.PI/2 - G.worldRot)*radius/2 + center.x
-    y = Math.sin(Math.PI * 2 - Math.PI/2 - G.worldRot)*radius/2 + center.y
-    ctx.lineTo(x * pixelsPerUnit, y * pixelsPerUnit)
     ctx.stroke()
+
+    ctx.fillStyle = '#000'
+    ctx.beginPath()
+    x = Math.cos(Math.PI * 2 - Math.PI/2 - G.worldRot)*radius*0.6 + center.x
+    y = Math.sin(Math.PI * 2 - Math.PI/2 - G.worldRot)*radius*0.6 + center.y
+    ctx.moveTo(x * pixelsPerUnit, y * pixelsPerUnit)
+    x = Math.cos(Math.PI * 2 - Math.PI/2 - G.worldRot)*radius*0.8 + center.x
+    y = Math.sin(Math.PI * 2 - Math.PI/2 - G.worldRot)*radius*0.8 + center.y
+    ctx.lineTo(x * pixelsPerUnit, y * pixelsPerUnit)
+    ctx.arc(center.x * pixelsPerUnit, center.y * pixelsPerUnit, radius*0.8 * pixelsPerUnit,
+      (Math.PI * 2 - Math.PI/2 - G.worldRot) % (Math.PI * 2),
+      (G.elapsedTime/(G.levelTime) * 2 * Math.PI - Math.PI/2+0.001 - G.worldRot)  % (Math.PI * 2))
+
+    x = Math.cos(G.elapsedTime/G.levelTime * Math.PI * 2 - Math.PI/2 - G.worldRot)*radius*0.6 + center.x
+    y = Math.sin(G.elapsedTime/G.levelTime * Math.PI * 2 - Math.PI/2 - G.worldRot)*radius*0.6 + center.y
+    ctx.lineTo(x * pixelsPerUnit, y * pixelsPerUnit)
+
+    ctx.arc(center.x * pixelsPerUnit, center.y * pixelsPerUnit, radius*0.6 * pixelsPerUnit,
+      (G.elapsedTime/(G.levelTime) * 2 * Math.PI - Math.PI/2+0.001 - G.worldRot)  % (Math.PI * 2),
+      (Math.PI * 2 - Math.PI/2 - G.worldRot) % (Math.PI * 2))
+
+    # ctx.arc(center.x * pixelsPerUnit, center.y * pixelsPerUnit, radius * pixelsPerUnit, 0, 2 * Math.PI)
+
+    # x = Math.cos(Math.PI * 2 - Math.PI/2 - G.worldRot)*radius*0.6 + center.x
+    # y = Math.sin(Math.PI * 2 - Math.PI/2 - G.worldRot)*radius*0.6 + center.y
+
+    # ctx.lineTo(x * pixelsPerUnit, y * pixelsPerUnit)
+    ctx.fill()
 
 
     tatumIndex = 0
-    while G.audio.tatums.length > tatumIndex+1 and G.audio.tatums[tatumIndex]? and G.audio.tatums[tatumIndex].start < G.elapsedTime
+    while G.audio.tatums.length > tatumIndex+1 and G.audio.tatums[tatumIndex]? and G.audio.tatums[tatumIndex].start < audioPlayer.currentTime
       # print(G.audio.beats[G.audio.beatIndex])
       tatumIndex++
-    tatumScaler = 0.05 * Math.sin(G.audio.tatums[tatumIndex].duration - (G.elapsedTime - G.audio.tatums[tatumIndex].start))
+    tatumScaler = 0.05 * Math.sin(G.audio.tatums[tatumIndex].duration - (audioPlayer.currentTime - G.audio.tatums[tatumIndex].start))
     tatumRadius = 0.06 + tatumScaler
     drawCenterTatum(ctx, pixelsPerUnit, tatumRadius, center)
 
@@ -400,8 +430,8 @@ require ['./state', 'jquery'], (STATE, $) ->
     if G.isPaused
       ctx.textAlign="center";
       ctx.fillStyle = '#000'
-      ctx.font="20px Georgia";
-      ctx.fillText('[SPACE]',pixelsPerUnit * center.x,pixelsPerUnit * center.y + 5);
+      ctx.font="20px Open Sans";
+      ctx.fillText('[SPACE]',pixelsPerUnit * center.x,pixelsPerUnit * center.y + 7);
 
     G
 
