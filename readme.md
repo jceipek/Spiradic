@@ -1,7 +1,6 @@
-# README
+# Spiradic
 
-## GOAL
-My goal was to make players feel rhythmic and frantic in the style of games like Super Hexagon.
+The experience goal of Spiradic is to make players feel rhythmic and frantic in the style of games like Super Hexagon.
 
 ## NEW THINGS
 While making this, I learned
