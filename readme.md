@@ -10,7 +10,7 @@ While making this, I learned
 - How to use the [EchoNest](http://the.echonest.com) and [Free Music Archive](http://freemusicarchive.org/api) APIs to find, analyze, and play music.
 - How to set up a 'live' game engine that updates whenever code changes and can optionally preserve game state between reloads. My implementation is inspired by Casey Muratori's [Instantaneous Live Code Editing](https://www.youtube.com/watch?v=oijEnriqqcs) for [Handmade Hero](http://handmadehero.org/)
 
-##[PLAY]()
+##[PLAY](http://jceipek.com/Spiradic/)
 
 
 ## DEVELOPMENT
