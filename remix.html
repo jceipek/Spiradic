@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset=utf-8>
+</head>
+
+<body>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+<script type="text/javascript" src='javascripts/remix.js'></script>
+<script type="text/javascript">
+// First-beat extraction and assembly
+// You will need to supply your Echo Nest API key, the trackID, and a URL to the track.
+// The supplied track can be found in the audio subdirectory.
+var apiKey = 'YSN67FHUAZZDWQBSL';
+var trackID = 'TRBZCJP131BAB74284';
+var trackURL = 'http://fma-files.s3.amazonaws.com/music%2FKBOO%2FThieves_Like_Us%2FPlay_Music%2FThieves_Like_Us_-_09_-_Desire.mp3?AWSAccessKeyId=13EXTDHE1ETARJ2812R2&Expires=1422856274&Signature=gTR6M03uU84WI2CvDBHPNJRaXIY%3D'
+var remixer;
+var player;
+var track;
+var remixed;
+function init() {
+    var contextFunction = window.webkitAudioContext || window.AudioContext;
+    if (contextFunction === undefined) {
+        $("#info").text("Sorry, this app needs advanced web audio. Your browser doesn't"
+            + " support it. Try the latest version of Chrome?");
+    } else {
+        var context = new contextFunction();
+        remixer = createJRemixer(context, $, apiKey);
+        player = remixer.getPlayer();
+        $("#info").text("Loading analysis data...");
+        remixer.remixTrackById(trackID, trackURL, function(t, percent) {
+            track = t;
+            $("#info").text(percent + "% of the track loaded");
+            if (percent == 100) {
+                $("#info").text(percent + "% of the track loaded, remixing...");
+            }
+            if (track.status == 'ok') {
+                remixed = new Array();
+                // Do the remixing here!
+                for (var i=0; i < track.analysis.beats.length; i++) {
+                    if (i % 4 == 0) {
+                        remixed.push(track.analysis.beats[i])
+                    }
+                }
+                $("#info").text("Remix complete!");
+            }
+        });
+    }
+}
+window.onload = init;
+</script>
+
+Welcome to One.html
+<div id='info'> </div>
+<button onClick="player.play(0, remixed);">Play!</button>
+<button onClick="player.stop()">Stop!</button>
+</body>
+
+
+
+</html>
