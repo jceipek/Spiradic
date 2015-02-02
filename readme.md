@@ -4,6 +4,8 @@ The experience goal of Spiradic is to make players feel rhythmic and frantic in 
 
 ##[PLAY](http://jceipek.com/Spiradic/)
 
+(just press space :) )
+
 ## DEVELOPMENT
 Generate JavaScript files and SourceMaps in the `javascripts` folder from the `scripts` folder every time you save the `.iced` files:
 
