@@ -18,7 +18,7 @@ require ['./state', 'jquery'], (STATE, $) ->
     url = 'http://developer.echonest.com/api/v4/song/search?' +
       (['api_key='+ECHONEST_ID
         'format=json'
-        'results=10'
+        'results=1'
         'min_tempo=120'
         'mood=excited'
         'sort=song_hotttnesss-desc'
@@ -75,12 +75,13 @@ require ['./state', 'jquery'], (STATE, $) ->
       invincibilityTimer: 0
       didGetHitTimer: 0
       levelTime: 10
-      elapsedTime: 0
+      elapsedTime: -2
       audio: {
         beatIndex: 0
         beats: []
         bars: []
         tatums: []
+        segments: []
       }
       worldRot: 0
       player: {
@@ -103,8 +104,8 @@ require ['./state', 'jquery'], (STATE, $) ->
 
     STATE.set(gs)
 
-  unless STATE.songs.read()?
-    initSongData((songData) -> initSongAnalysis(STATE.songs.read()))
+  # unless STATE.songs.read()?
+  initSongData((songData) -> initSongAnalysis(STATE.songs.read()))
 
   # STATE.songs.set('')
   # initSongData()
@@ -164,7 +165,7 @@ require ['./state', 'jquery'], (STATE, $) ->
         lastTimestamp = timestamp
         window.requestAnimationFrame step)()
 
-  typeColors = ['#FC3A8B', '#01B0F0']
+  typeColors = ['#FC3A8B', '#01B0F0'] #['#FFF', '#000']
   clearScreen = (ctx, screenDims, type) ->
     ctx.fillStyle = typeColors[type]
     ctx.fillRect(0,0, screenDims.widthPX,
@@ -184,10 +185,11 @@ require ['./state', 'jquery'], (STATE, $) ->
     ctx.fill()
     # ctx.fillRect(pos.x*pixelsPerUnit-sidelength/2,pos.y*pixelsPerUnit-sidelength/2,sidelength,sidelength)
 
-  drawBeat = (ctx, pixelsPerUnit, pos, type) ->
+  drawBeat = (ctx, pixelsPerUnit, pos, percentage, type) ->
     ctx.fillStyle = typeColors[type]
+    # ctx.strokeStyle = typeColors[type]
     ctx.beginPath()
-    radius = 0.01
+    radius = 0.01 * percentage# + (0.001*type)
     ctx.arc(pos.x*pixelsPerUnit, pos.y*pixelsPerUnit, radius*pixelsPerUnit, 0, Math.PI * 2)
     ctx.closePath()
     ctx.fill()
@@ -220,17 +222,22 @@ require ['./state', 'jquery'], (STATE, $) ->
   audioPlaying = false
   audioInfo = null
   audioPlayer = null
+  chosenSongInfo = null
   guar = (ctx, G, dt) ->
     pixelsPerUnit = G.screenDims.widthPX;
     unless audioLoaded
       audioInfo = STATE.song_analyses.read()
-      songIndex = 1
+      songIndex = 0
+      if not audioInfo? or audioInfo.length <= songIndex
+        print "NOT ENOUGH HITS"
       if audioInfo? and audioInfo.length > songIndex
         chosenSongInfo = audioInfo[songIndex]
         audioPlayer = new Audio(chosenSongInfo.song_info.track_url+'/download')
+        # audioPlayer.preload = true
         G.audio.beats = chosenSongInfo.analysis.beats
         G.audio.bars = chosenSongInfo.analysis.bars
         G.audio.tatums = chosenSongInfo.analysis.tatums
+        G.audio.segments = chosenSongInfo.analysis.segments
         audioLoaded = true
         audioPlayer.currentTime = G.elapsedTime
         audioPlayer.oncanplay = () ->
@@ -251,16 +258,50 @@ require ['./state', 'jquery'], (STATE, $) ->
       ctx.fillText("Loading...",10,30);
 
     # ms Counter
-    ctx.textAlign="right";
-    ctx.fillStyle = '#000'
-    ctx.font="20px Open Sans";
-    ctx.fillText(parseInt(dt*10)/10,pixelsPerUnit * (G.worldDims.width-0.01),30);
+    # ctx.textAlign="right";
+    # ctx.fillStyle = '#000'
+    # ctx.font="20px Open Sans";
+    # ctx.fillText(parseInt(dt*10)/10,pixelsPerUnit * (G.worldDims.width-0.01),30);
+    if chosenSongInfo != null
+      ctx.textAlign="right";
+      ctx.fillStyle = '#000'
+      ctx.font="20px Open Sans";
+      ctx.fillText('music by',pixelsPerUnit * (G.worldDims.width-0.01),pixelsPerUnit * (G.worldDims.height-0.07));
+      ctx.fillText(chosenSongInfo.song_info.artist_name,pixelsPerUnit * (G.worldDims.width-0.01),pixelsPerUnit * (G.worldDims.height-0.04));
+      ctx.fillText(chosenSongInfo.song_info.track_title,pixelsPerUnit * (G.worldDims.width-0.01),pixelsPerUnit * (G.worldDims.height-0.02));
+
+      ctx.textAlign="left";
+      ctx.fillText("crafted by Julian Ceipek",pixelsPerUnit * (0.01),pixelsPerUnit * (G.worldDims.height-0.02));
+
     P.swapBuffers()
 
     G
 
-  beatType = (index) ->
-    if index % 3 == 0
+# a  b  c  d  e
+# 01 23 45 67 89
+
+  beatType = (index, difficulty) ->
+    if difficulty < 5
+      if Math.floor(index/(5 - difficulty)) % 2 == 0
+        return 1
+      return 0
+
+
+    if difficulty < 10
+      if difficulty % 2 == 0
+        if index % 2 == 0
+          return 1
+      if Math.floor(index/2) % 2 == 0
+        return 1
+      return 0
+
+
+    if difficulty % 3 == 0
+      if index % 2 == 0
+        return 1
+      return 0
+
+    if Math.floor(index/2) % 2 == 0
       return 1
     return 0
 
@@ -275,11 +316,14 @@ require ['./state', 'jquery'], (STATE, $) ->
     if G.didGetHitTimer > 0
       G.didGetHitTimer -= dt
       if G.didGetHitTimer <= 0
-        G.elapsedTime -= 1
+        G.elapsedTime = Math.max(G.elapsedTime - 0.3, G.levelTime * (G.levelIndex - 1) )
         audioPlayer.currentTime = G.elapsedTime
         audioPlayer.play()
     else if not G.isPaused
-      G.elapsedTime += dt/1000
+      if Math.ceil(audioPlayer.duration/G.levelTime) > G.elapsedTime/G.levelTime
+        G.elapsedTime += dt/1000
+      else
+        G.elapsedTime = Math.ceil(audioPlayer.duration/G.levelTime) * G.levelTime
     # if G.elapsedTime - audioPlayer.currentTime > 0
     #   G.elapsedTime = audioPlayer.currentTime
 
@@ -292,10 +336,11 @@ require ['./state', 'jquery'], (STATE, $) ->
         G.player.type += 1
         G.player.type = G.player.type % G.player.totalTypes
 
-        if G.elapsedTime > G.levelTime * G.levelIndex
-          G.levelIndex += 1
-          G.isPaused = true
-          audioPlayer.pause()
+    unless G.isPaused
+      if G.elapsedTime > G.levelTime * G.levelIndex
+        G.levelIndex += 1
+        # G.isPaused = true
+        # audioPlayer.pause()
     # Clear the bg
     clearScreen(ctx, G.screenDims, G.player.type)
 
@@ -345,6 +390,14 @@ require ['./state', 'jquery'], (STATE, $) ->
     # ctx.lineTo(x * pixelsPerUnit, y * pixelsPerUnit)
     ctx.fill()
 
+    playerPos = circleToCartesian(G.elapsedTime, G.levelTime, radius, G.worldRot, center)
+    ctx.strokeStyle = '#000'
+    ctx.beginPath()
+    ctx.moveTo(playerPos.x * pixelsPerUnit, playerPos.y * pixelsPerUnit)
+    ctx.lineTo(center.x*pixelsPerUnit, center.y*pixelsPerUnit)
+    # ctx.closePath()
+    ctx.stroke()
+
 
     tatumIndex = 0
     while G.audio.tatums.length > tatumIndex+1 and G.audio.tatums[tatumIndex]? and G.audio.tatums[tatumIndex].start < audioPlayer.currentTime
@@ -355,28 +408,34 @@ require ['./state', 'jquery'], (STATE, $) ->
     drawCenterTatum(ctx, pixelsPerUnit, tatumRadius, center)
 
 
-    playerPos = circleToCartesian(G.elapsedTime, G.levelTime, radius, G.worldRot, center)
+
+
 
     if G.invincibilityTimer > 0
       G.invincibilityTimer -= dt
 
     for beat,i in G.audio.beats
       if beat?
-        t = beatType(i) #(if beat.confidence > 0.6 then 1 else 0)
+        t = beatType(i, Math.floor(beat.start/G.levelTime)) #(if beat.confidence > 0.6 then 1 else 0)
 
-        if beat.start < G.levelTime
-          pos = circleToCartesian(beat.start, G.levelTime, radius, G.worldRot, center)
-          drawBeat(ctx, pixelsPerUnit, pos, t)
+#        if beat.start < (G.levelTime * G.levelIndex) and beat.start > (G.levelTime * (G.levelIndex - 1)) #and beat.start > G.elapsedTime
+        pos = circleToCartesian(beat.start, G.levelTime, radius, G.worldRot, center)
 
-          if G.invincibilityTimer <= 0 and Math.abs((G.elapsedTime % G.levelTime) - beat.start) <= G.player.collisionRadius and t != G.player.type
-            # print 'die'
-            audioPlayer.pause()
-            G.invincibilityTimer = (1/60*1000) * 30
-            G.didGetHitTimer = (1/60*1000) * 20
+        percentage = 0
+        if Math.abs(beat.start - G.elapsedTime) < G.levelTime*0.2
+          percentage = 1-Math.abs((beat.start - G.elapsedTime))/(G.levelTime*0.2)
+        percentage = Math.max(Math.min(percentage, 1), 0)
+        drawBeat(ctx, pixelsPerUnit, pos, percentage, t)
 
-        else if beat.start < G.levelTime*2
-          pos = circleToCartesian(beat.start, G.levelTime, radius/2, -G.worldRot, center)
-          drawBeat(ctx, pixelsPerUnit, pos, t)
+        if G.invincibilityTimer <= 0 and Math.abs(G.elapsedTime - beat.start) <= G.player.collisionRadius and t != G.player.type
+          # print 'die'
+          audioPlayer.pause()
+          G.invincibilityTimer = (1/60*1000) * 30
+          G.didGetHitTimer = (1/60*1000) * 20
+
+        # else if beat.start < (G.levelTime * (G.levelIndex+1)) and beat.start > (G.levelTime * (G.levelIndex))
+        #   pos = circleToCartesian(beat.start, G.levelTime, radius/2, -G.worldRot, center)
+        #   drawBeat(ctx, pixelsPerUnit, pos, 0.5, t)
 
 
     # for tatum in G.audio.tatums

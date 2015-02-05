@@ -52,7 +52,7 @@
   });
 
   require(['./state', 'jquery'], function(STATE, $) {
-    var DEBUG, ECHONEST_ID, P, audioInfo, audioLoaded, audioPlayer, audioPlaying, beatType, circleToCartesian, clearScreen, drawBeat, drawCenterTatum, drawEntity, drawTatum, gameplayLoop, guar, initGameData, initSongAnalysis, initSongData, print, spiralToCartesian, step, typeColors;
+    var DEBUG, ECHONEST_ID, P, audioInfo, audioLoaded, audioPlayer, audioPlaying, beatType, chosenSongInfo, circleToCartesian, clearScreen, drawBeat, drawCenterTatum, drawEntity, drawTatum, gameplayLoop, guar, initGameData, initSongAnalysis, initSongData, print, spiralToCartesian, step, typeColors;
     DEBUG = true;
     print = function(x) {
       if (DEBUG) {
@@ -64,7 +64,7 @@
       var fmaData, i, res, song, songFiles, songList, url, ___iced_passed_deferral, __iced_deferrals, __iced_k;
       __iced_k = __iced_k_noop;
       ___iced_passed_deferral = iced.findDeferral(arguments);
-      url = 'http://developer.echonest.com/api/v4/song/search?' + (['api_key=' + ECHONEST_ID, 'format=json', 'results=10', 'min_tempo=120', 'mood=excited', 'sort=song_hotttnesss-desc', 'bucket=id:fma', 'bucket=tracks', 'limit=true'].join('&'));
+      url = 'http://developer.echonest.com/api/v4/song/search?' + (['api_key=' + ECHONEST_ID, 'format=json', 'results=1', 'min_tempo=120', 'mood=excited', 'sort=song_hotttnesss-desc', 'bucket=id:fma', 'bucket=tracks', 'limit=true'].join('&'));
       (function(_this) {
         return (function(__iced_k) {
           __iced_deferrals = new iced.Deferrals(__iced_k, {
@@ -218,12 +218,13 @@
         invincibilityTimer: 0,
         didGetHitTimer: 0,
         levelTime: 10,
-        elapsedTime: 0,
+        elapsedTime: -2,
         audio: {
           beatIndex: 0,
           beats: [],
           bars: [],
-          tatums: []
+          tatums: [],
+          segments: []
         },
         worldRot: 0,
         player: {
@@ -245,11 +246,9 @@
       };
       return STATE.set(gs);
     };
-    if (STATE.songs.read() == null) {
-      initSongData(function(songData) {
-        return initSongAnalysis(STATE.songs.read());
-      });
-    }
+    initSongData(function(songData) {
+      return initSongAnalysis(STATE.songs.read());
+    });
     console.log(STATE.song_analyses.read());
     document.getElementById('loading-msg').remove();
     initGameData();
@@ -326,11 +325,11 @@
       ctx.closePath();
       return ctx.fill();
     };
-    drawBeat = function(ctx, pixelsPerUnit, pos, type) {
+    drawBeat = function(ctx, pixelsPerUnit, pos, percentage, type) {
       var radius;
       ctx.fillStyle = typeColors[type];
       ctx.beginPath();
-      radius = 0.01;
+      radius = 0.01 * percentage;
       ctx.arc(pos.x * pixelsPerUnit, pos.y * pixelsPerUnit, radius * pixelsPerUnit, 0, Math.PI * 2);
       ctx.closePath();
       return ctx.fill();
@@ -369,18 +368,23 @@
     audioPlaying = false;
     audioInfo = null;
     audioPlayer = null;
+    chosenSongInfo = null;
     guar = function(ctx, G, dt) {
-      var chosenSongInfo, pixelsPerUnit, songIndex;
+      var pixelsPerUnit, songIndex;
       pixelsPerUnit = G.screenDims.widthPX;
       if (!audioLoaded) {
         audioInfo = STATE.song_analyses.read();
-        songIndex = 1;
+        songIndex = 0;
+        if ((audioInfo == null) || audioInfo.length <= songIndex) {
+          print("NOT ENOUGH HITS");
+        }
         if ((audioInfo != null) && audioInfo.length > songIndex) {
           chosenSongInfo = audioInfo[songIndex];
           audioPlayer = new Audio(chosenSongInfo.song_info.track_url + '/download');
           G.audio.beats = chosenSongInfo.analysis.beats;
           G.audio.bars = chosenSongInfo.analysis.bars;
           G.audio.tatums = chosenSongInfo.analysis.tatums;
+          G.audio.segments = chosenSongInfo.analysis.segments;
           audioLoaded = true;
           audioPlayer.currentTime = G.elapsedTime;
           audioPlayer.oncanplay = function() {
@@ -401,21 +405,50 @@
         ctx.font = "20px Open Sans";
         ctx.fillText("Loading...", 10, 30);
       }
-      ctx.textAlign = "right";
-      ctx.fillStyle = '#000';
-      ctx.font = "20px Open Sans";
-      ctx.fillText(parseInt(dt * 10) / 10, pixelsPerUnit * (G.worldDims.width - 0.01), 30);
+      if (chosenSongInfo !== null) {
+        ctx.textAlign = "right";
+        ctx.fillStyle = '#000';
+        ctx.font = "20px Open Sans";
+        ctx.fillText('music by', pixelsPerUnit * (G.worldDims.width - 0.01), pixelsPerUnit * (G.worldDims.height - 0.07));
+        ctx.fillText(chosenSongInfo.song_info.artist_name, pixelsPerUnit * (G.worldDims.width - 0.01), pixelsPerUnit * (G.worldDims.height - 0.04));
+        ctx.fillText(chosenSongInfo.song_info.track_title, pixelsPerUnit * (G.worldDims.width - 0.01), pixelsPerUnit * (G.worldDims.height - 0.02));
+        ctx.textAlign = "left";
+        ctx.fillText("crafted by Julian Ceipek", pixelsPerUnit * 0.01, pixelsPerUnit * (G.worldDims.height - 0.02));
+      }
       P.swapBuffers();
       return G;
     };
-    beatType = function(index) {
-      if (index % 3 === 0) {
+    beatType = function(index, difficulty) {
+      if (difficulty < 5) {
+        if (Math.floor(index / (5 - difficulty)) % 2 === 0) {
+          return 1;
+        }
+        return 0;
+      }
+      if (difficulty < 10) {
+        if (difficulty % 2 === 0) {
+          if (index % 2 === 0) {
+            return 1;
+          }
+        }
+        if (Math.floor(index / 2) % 2 === 0) {
+          return 1;
+        }
+        return 0;
+      }
+      if (difficulty % 3 === 0) {
+        if (index % 2 === 0) {
+          return 1;
+        }
+        return 0;
+      }
+      if (Math.floor(index / 2) % 2 === 0) {
         return 1;
       }
       return 0;
     };
     gameplayLoop = function(ctx, G, dt) {
-      var beat, center, i, pixelsPerUnit, playerPos, pos, radius, scaler, t, tatumIndex, tatumRadius, tatumScaler, x, y, _i, _len, _ref;
+      var beat, center, i, percentage, pixelsPerUnit, playerPos, pos, radius, scaler, t, tatumIndex, tatumRadius, tatumScaler, x, y, _i, _len, _ref;
       pixelsPerUnit = G.screenDims.widthPX;
       center = {
         x: G.worldDims.width / 2,
@@ -424,12 +457,16 @@
       if (G.didGetHitTimer > 0) {
         G.didGetHitTimer -= dt;
         if (G.didGetHitTimer <= 0) {
-          G.elapsedTime -= 1;
+          G.elapsedTime = Math.max(G.elapsedTime - 0.3, G.levelTime * (G.levelIndex - 1));
           audioPlayer.currentTime = G.elapsedTime;
           audioPlayer.play();
         }
       } else if (!G.isPaused) {
-        G.elapsedTime += dt / 1000;
+        if (Math.ceil(audioPlayer.duration / G.levelTime) > G.elapsedTime / G.levelTime) {
+          G.elapsedTime += dt / 1000;
+        } else {
+          G.elapsedTime = Math.ceil(audioPlayer.duration / G.levelTime) * G.levelTime;
+        }
       }
       if (G.input.change) {
         if (G.isPaused) {
@@ -439,11 +476,11 @@
         } else {
           G.player.type += 1;
           G.player.type = G.player.type % G.player.totalTypes;
-          if (G.elapsedTime > G.levelTime * G.levelIndex) {
-            G.levelIndex += 1;
-            G.isPaused = true;
-            audioPlayer.pause();
-          }
+        }
+      }
+      if (!G.isPaused) {
+        if (G.elapsedTime > G.levelTime * G.levelIndex) {
+          G.levelIndex += 1;
         }
       }
       clearScreen(ctx, G.screenDims, G.player.type);
@@ -474,6 +511,12 @@
       ctx.lineTo(x * pixelsPerUnit, y * pixelsPerUnit);
       ctx.arc(center.x * pixelsPerUnit, center.y * pixelsPerUnit, radius * 0.6 * pixelsPerUnit, (G.elapsedTime / G.levelTime * 2 * Math.PI - Math.PI / 2 + 0.001 - G.worldRot) % (Math.PI * 2), (Math.PI * 2 - Math.PI / 2 - G.worldRot) % (Math.PI * 2));
       ctx.fill();
+      playerPos = circleToCartesian(G.elapsedTime, G.levelTime, radius, G.worldRot, center);
+      ctx.strokeStyle = '#000';
+      ctx.beginPath();
+      ctx.moveTo(playerPos.x * pixelsPerUnit, playerPos.y * pixelsPerUnit);
+      ctx.lineTo(center.x * pixelsPerUnit, center.y * pixelsPerUnit);
+      ctx.stroke();
       tatumIndex = 0;
       while (G.audio.tatums.length > tatumIndex + 1 && (G.audio.tatums[tatumIndex] != null) && G.audio.tatums[tatumIndex].start < audioPlayer.currentTime) {
         tatumIndex++;
@@ -481,7 +524,6 @@
       tatumScaler = 0.05 * Math.sin(G.audio.tatums[tatumIndex].duration - (audioPlayer.currentTime - G.audio.tatums[tatumIndex].start));
       tatumRadius = 0.06 + tatumScaler;
       drawCenterTatum(ctx, pixelsPerUnit, tatumRadius, center);
-      playerPos = circleToCartesian(G.elapsedTime, G.levelTime, radius, G.worldRot, center);
       if (G.invincibilityTimer > 0) {
         G.invincibilityTimer -= dt;
       }
@@ -489,18 +531,18 @@
       for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
         beat = _ref[i];
         if (beat != null) {
-          t = beatType(i);
-          if (beat.start < G.levelTime) {
-            pos = circleToCartesian(beat.start, G.levelTime, radius, G.worldRot, center);
-            drawBeat(ctx, pixelsPerUnit, pos, t);
-            if (G.invincibilityTimer <= 0 && Math.abs((G.elapsedTime % G.levelTime) - beat.start) <= G.player.collisionRadius && t !== G.player.type) {
-              audioPlayer.pause();
-              G.invincibilityTimer = (1 / 60 * 1000) * 30;
-              G.didGetHitTimer = (1 / 60 * 1000) * 20;
-            }
-          } else if (beat.start < G.levelTime * 2) {
-            pos = circleToCartesian(beat.start, G.levelTime, radius / 2, -G.worldRot, center);
-            drawBeat(ctx, pixelsPerUnit, pos, t);
+          t = beatType(i, Math.floor(beat.start / G.levelTime));
+          pos = circleToCartesian(beat.start, G.levelTime, radius, G.worldRot, center);
+          percentage = 0;
+          if (Math.abs(beat.start - G.elapsedTime) < G.levelTime * 0.2) {
+            percentage = 1 - Math.abs(beat.start - G.elapsedTime) / (G.levelTime * 0.2);
+          }
+          percentage = Math.max(Math.min(percentage, 1), 0);
+          drawBeat(ctx, pixelsPerUnit, pos, percentage, t);
+          if (G.invincibilityTimer <= 0 && Math.abs(G.elapsedTime - beat.start) <= G.player.collisionRadius && t !== G.player.type) {
+            audioPlayer.pause();
+            G.invincibilityTimer = (1 / 60 * 1000) * 30;
+            G.didGetHitTimer = (1 / 60 * 1000) * 20;
           }
         }
       }
