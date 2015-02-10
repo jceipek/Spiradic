@@ -171,6 +171,20 @@ require ['./state', 'jquery'], (STATE, $) ->
     ctx.fillRect(0,0, screenDims.widthPX,
                        screenDims.heightPX)
 
+  drawEntityNew = (ctx, pixelsPerUnit, posOuter, posInner, invincibility) ->
+    if invincibility > 0
+      ctx.strokeStyle = '#FFF'
+    else
+      ctx.strokeStyle = '#AEEE00'
+
+    ctx.beginPath()
+    ctx.moveTo(posInner.x*pixelsPerUnit, posInner.y*pixelsPerUnit)
+    ctx.lineTo(posOuter.x*pixelsPerUnit, posOuter.y*pixelsPerUnit)
+    # radius = 0.01
+    # ctx.arc(pos.x*pixelsPerUnit, pos.y*pixelsPerUnit, radius*pixelsPerUnit, 0, Math.PI * 2)
+    # ctx.closePath()
+    ctx.stroke()
+
   drawEntity = (ctx, pixelsPerUnit, pos, invincibility) ->
     if invincibility > 0
       ctx.fillStyle = '#FFF'
@@ -391,6 +405,7 @@ require ['./state', 'jquery'], (STATE, $) ->
     ctx.fill()
 
     playerPos = circleToCartesian(G.elapsedTime, G.levelTime, radius, G.worldRot, center)
+    playerPosInner = circleToCartesian(G.elapsedTime, G.levelTime, radius/2, G.worldRot, center)
     ctx.strokeStyle = '#000'
     ctx.beginPath()
     ctx.moveTo(playerPos.x * pixelsPerUnit, playerPos.y * pixelsPerUnit)
@@ -450,7 +465,9 @@ require ['./state', 'jquery'], (STATE, $) ->
         #   audioPlayer.currentTime = G.elapsedTime
 
 
-    drawEntity(ctx, pixelsPerUnit, playerPos, G.invincibilityTimer)
+    playerPos = circleToCartesian(G.elapsedTime, G.levelTime, radius*1.02, G.worldRot, center)
+    drawEntityNew(ctx, pixelsPerUnit, playerPos, playerPosInner, G.invincibilityTimer)
+    # drawEntity(ctx, pixelsPerUnit, playerPos, G.invincibilityTimer)
 
     # levelTime
 

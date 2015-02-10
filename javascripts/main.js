@@ -52,7 +52,7 @@
   });
 
   require(['./state', 'jquery'], function(STATE, $) {
-    var DEBUG, ECHONEST_ID, P, audioInfo, audioLoaded, audioPlayer, audioPlaying, beatType, chosenSongInfo, circleToCartesian, clearScreen, drawBeat, drawCenterTatum, drawEntity, drawTatum, gameplayLoop, guar, initGameData, initSongAnalysis, initSongData, print, spiralToCartesian, step, typeColors;
+    var DEBUG, ECHONEST_ID, P, audioInfo, audioLoaded, audioPlayer, audioPlaying, beatType, chosenSongInfo, circleToCartesian, clearScreen, drawBeat, drawCenterTatum, drawEntity, drawEntityNew, drawTatum, gameplayLoop, guar, initGameData, initSongAnalysis, initSongData, print, spiralToCartesian, step, typeColors;
     DEBUG = true;
     print = function(x) {
       if (DEBUG) {
@@ -312,6 +312,17 @@
       ctx.fillStyle = typeColors[type];
       return ctx.fillRect(0, 0, screenDims.widthPX, screenDims.heightPX);
     };
+    drawEntityNew = function(ctx, pixelsPerUnit, posOuter, posInner, invincibility) {
+      if (invincibility > 0) {
+        ctx.strokeStyle = '#FFF';
+      } else {
+        ctx.strokeStyle = '#AEEE00';
+      }
+      ctx.beginPath();
+      ctx.moveTo(posInner.x * pixelsPerUnit, posInner.y * pixelsPerUnit);
+      ctx.lineTo(posOuter.x * pixelsPerUnit, posOuter.y * pixelsPerUnit);
+      return ctx.stroke();
+    };
     drawEntity = function(ctx, pixelsPerUnit, pos, invincibility) {
       var radius;
       if (invincibility > 0) {
@@ -448,7 +459,7 @@
       return 0;
     };
     gameplayLoop = function(ctx, G, dt) {
-      var beat, center, i, percentage, pixelsPerUnit, playerPos, pos, radius, scaler, t, tatumIndex, tatumRadius, tatumScaler, x, y, _i, _len, _ref;
+      var beat, center, i, percentage, pixelsPerUnit, playerPos, playerPosInner, pos, radius, scaler, t, tatumIndex, tatumRadius, tatumScaler, x, y, _i, _len, _ref;
       pixelsPerUnit = G.screenDims.widthPX;
       center = {
         x: G.worldDims.width / 2,
@@ -512,6 +523,7 @@
       ctx.arc(center.x * pixelsPerUnit, center.y * pixelsPerUnit, radius * 0.6 * pixelsPerUnit, (G.elapsedTime / G.levelTime * 2 * Math.PI - Math.PI / 2 + 0.001 - G.worldRot) % (Math.PI * 2), (Math.PI * 2 - Math.PI / 2 - G.worldRot) % (Math.PI * 2));
       ctx.fill();
       playerPos = circleToCartesian(G.elapsedTime, G.levelTime, radius, G.worldRot, center);
+      playerPosInner = circleToCartesian(G.elapsedTime, G.levelTime, radius / 2, G.worldRot, center);
       ctx.strokeStyle = '#000';
       ctx.beginPath();
       ctx.moveTo(playerPos.x * pixelsPerUnit, playerPos.y * pixelsPerUnit);
@@ -546,7 +558,8 @@
           }
         }
       }
-      drawEntity(ctx, pixelsPerUnit, playerPos, G.invincibilityTimer);
+      playerPos = circleToCartesian(G.elapsedTime, G.levelTime, radius * 1.02, G.worldRot, center);
+      drawEntityNew(ctx, pixelsPerUnit, playerPos, playerPosInner, G.invincibilityTimer);
       if (G.isPaused) {
         ctx.textAlign = "center";
         ctx.fillStyle = '#000';
